@@ -12,12 +12,14 @@ class ArtistScreen extends StatefulWidget {
   final String artistId;
   final String artistName;
   final String? artistImageUrl;
+  final MusicSource? source;
 
   const ArtistScreen({
     super.key,
     required this.artistId,
     required this.artistName,
     this.artistImageUrl,
+    this.source,
   });
 
   @override
@@ -35,7 +37,11 @@ class _ArtistScreenState extends State<ArtistScreen> {
   }
 
   Future<List<MusicTrack>> _fetchAndProcessTracks(MusicProvider musicProvider) async {
-    final rawTracks = await musicProvider.getArtistTracks(widget.artistId, widget.artistName);
+    final rawTracks = await musicProvider.getArtistTracks(
+      widget.artistId, 
+      widget.artistName,
+      source: widget.source,
+    );
     
     // Process tracks once after fetching
     return rawTracks.map((t) {
@@ -110,7 +116,7 @@ class _ArtistScreenState extends State<ArtistScreen> {
                               artist: 'Artist',
                               album: 'Artist',
                               albumArtUrl: widget.artistImageUrl ?? '',
-                              source: MusicSource.youtube,
+                              source: widget.source ?? MusicSource.youtube,
                             ),
                             'artist',
                           );

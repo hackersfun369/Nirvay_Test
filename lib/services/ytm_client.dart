@@ -64,11 +64,11 @@ class YtmClient {
         'params': params,
       });
 
-      // Offload heavy parsing to background
-      final sections = await YtmParser.findRenderersInBackground(response.body, 'musicShelfRenderer');
-      
       final List<MusicTrack> items = [];
-      for (var shelf in sections) {
+      
+      // 1. Standard List Items (musicShelfRenderer)
+      final shelves = await YtmParser.findRenderersInBackground(response.body, 'musicShelfRenderer');
+      for (var shelf in shelves) {
         final shelfItems = shelf['contents'] ?? [];
         for (var item in shelfItems) {
           final renderer = item['musicResponsiveListItemRenderer'];
@@ -77,6 +77,28 @@ class YtmClient {
           if (track != null) items.add(track);
         }
       }
+
+      // 2. Grid Items / Cards (gridRenderer)
+      final grids = await YtmParser.findRenderersInBackground(response.body, 'gridRenderer');
+      for (var grid in grids) {
+        final gridItems = grid['items'] ?? [];
+        for (var item in gridItems) {
+           final renderer = item['musicTwoRowItemRenderer'];
+           if (renderer == null) continue;
+           final track = _parseTrackItem(renderer, isCard: true);
+           if (track != null) items.add(track);
+        }
+      }
+
+      // 3. Primary Card Result (musicCardShelfRenderer)
+      if (items.isEmpty) {
+        final cards = await YtmParser.findRenderersInBackground(response.body, 'musicCardShelfRenderer');
+        for (var card in cards) {
+          final track = _parseTrackItem(card, isCard: true);
+          if (track != null) items.add(track);
+        }
+      }
+
       return items;
     } catch (e) {
       print('YTM Search Error: $e');

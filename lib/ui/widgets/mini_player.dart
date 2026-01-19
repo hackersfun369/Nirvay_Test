@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/player_provider.dart';
 import '../screens/player_screen.dart';
 import '../theme.dart';
+import '../../main.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -17,8 +18,7 @@ class MiniPlayer extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
+        navigatorKey.currentState!.push(
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => const PlayerScreen(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {

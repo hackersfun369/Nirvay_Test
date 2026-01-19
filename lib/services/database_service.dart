@@ -13,16 +13,20 @@ class DatabaseService {
 
   static Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
-    isar = await Isar.open(
-      [
-        DownloadedTrackSchema, 
-        LocalPlaylistSchema, 
-        SearchHistorySchema,
-        WatchHistorySchema,
-        LikedSongSchema,
-        SavedItemSchema,
-      ],
-      directory: dir.path,
-    );
+    if (Isar.instanceNames.isEmpty) {
+      isar = await Isar.open(
+        [
+          DownloadedTrackSchema, 
+          LocalPlaylistSchema, 
+          SearchHistorySchema,
+          WatchHistorySchema,
+          LikedSongSchema,
+          SavedItemSchema,
+        ],
+        directory: dir.path,
+      );
+    } else {
+      isar = Isar.getInstance()!;
+    }
   }
 }

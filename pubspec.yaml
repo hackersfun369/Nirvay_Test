@@ -59,13 +59,13 @@ dependencies:
   audio_service_mpris: ^0.2.0
   
   # YouTube & Streaming
-  youtube_explode_dart:
-    git:
-      url: https://github.com/HemantKArya/youtube_explode_dart.git
-      ref: master
+  youtube_explode_dart: ^3.0.5
+    # git:
+      # url: https://github.com/HemantKArya/youtube_explode_dart.git
+      # ref: master
   
   # Networking & Data
-  http: ^1.5.0
+  http: ^1.6.0
   dio: ^5.4.0
   
   # Database & Storage
@@ -108,6 +108,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  min_sdk_android: 21 # android min sdk min:21, default:21
 
 dependency_overrides:
   ffi: ^2.1.0

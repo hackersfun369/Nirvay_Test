@@ -432,12 +432,14 @@ class _ArtistsTab extends StatelessWidget {
             title: Text(artist.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             subtitle: const Text('Artist', style: TextStyle(color: SpotifyColors.grey, fontSize: 12)),
             onTap: () {
+              final source = artist.source == 'MusicSource.saavn' ? MusicSource.saavn : MusicSource.youtube;
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => ArtistScreen(
                   artistId: artist.itemId, 
                   artistName: artist.name,
                   artistImageUrl: artist.imageUrl,
+                  source: source,
                 )),
               );
             },
@@ -474,6 +476,7 @@ class _ArtistsTab extends StatelessWidget {
                 artistId: artist.id, 
                 artistName: artist.title,
                 artistImageUrl: artist.albumArtUrl,
+                source: artist.source,
               )),
             );
           },
@@ -522,6 +525,7 @@ class _AlbumsTab extends StatelessWidget {
           final album = likedAlbums[index];
           return GestureDetector(
             onTap: () {
+              final source = album.source == 'MusicSource.saavn' ? MusicSource.saavn : MusicSource.youtube;
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => AlbumScreen(
@@ -529,6 +533,7 @@ class _AlbumsTab extends StatelessWidget {
                   albumName: album.name, 
                   artistName: album.artistName ?? 'Unknown',
                   albumArtUrl: album.imageUrl,
+                  source: source,
                 )),
               );
             },
@@ -589,6 +594,7 @@ class _AlbumsTab extends StatelessWidget {
                 albumName: album.title, 
                 artistName: album.artist,
                 albumArtUrl: album.albumArtUrl,
+                source: album.source,
               )),
             );
           },

@@ -78,8 +78,9 @@ class MusicProvider with ChangeNotifier {
       )).toList();
 
       // 2, 3, 4. Generate Personalized Content in parallel
+      List<String> uniqueArtists = [];
       if (history.isNotEmpty) {
-        final uniqueArtists = history
+        uniqueArtists = history
             .where((h) => h.artist.isNotEmpty && h.artist != 'Unknown')
             .map((h) => h.artist)
             .toSet()
@@ -93,15 +94,55 @@ class MusicProvider with ChangeNotifier {
         ]);
       } else {
         _quickPicks = [];
-        _relatedAlbums = [];
+        // Fallback for new users: Show generic popular albums
+        await _generateRelatedAlbums(['Taylor Swift', 'The Weeknd', 'Arijit Singh', 'BTS']); 
         _relatedArtists = [];
       }
+      
+      // 5. Fetch Global Content (Trending, Charts, New Releases)
+      await Future.wait([
+        fetchTrending(),
+        fetchExploreData(seedArtists: uniqueArtists),
+      ]);
+
+      // 6. Global Deduplication
+      _deduplicateHomeSections();
+
     } catch (e) {
       print('Error fetching home content: $e');
     }
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  void _deduplicateHomeSections() {
+    final seenIds = <String>{};
+
+    // 1. Recently Played (Priority 1)
+    _recentlyPlayed = _uniqueList(_recentlyPlayed, seenIds);
+
+    // 2. Quick Picks (Priority 2)
+    _quickPicks = _uniqueList(_quickPicks, seenIds);
+
+    // 3. Trending (Priority 3)
+    _trendingTracks = _uniqueList(_trendingTracks, seenIds);
+    
+    // Note: Albums and Charts are distinct types, so we just internal-dedup them
+    _newReleases = _uniqueList(_newReleases, <String>{}); // Local dedup only
+    _relatedAlbums = _uniqueList(_relatedAlbums, <String>{});
+    _charts = _uniqueList(_charts, <String>{});
+  }
+
+  List<MusicTrack> _uniqueList(List<MusicTrack> list, Set<String> seenIds) {
+    final unique = <MusicTrack>[];
+    for (var item in list) {
+      if (item.id.isNotEmpty && !seenIds.contains(item.id)) {
+        seenIds.add(item.id);
+        unique.add(item);
+      }
+    }
+    return unique;
   }
 
   Future<void> _generateQuickPicks(List<String> artists) async {
@@ -112,8 +153,10 @@ class MusicProvider with ChangeNotifier {
         quickPicksList.addAll(artistTracks.take(3));
       } catch (e) {}
     }));
-    quickPicksList.shuffle();
-    _quickPicks = quickPicksList.take(15).toList();
+    // Interleave results to keep variety but prioritize top artists
+    // (Instead of valid shuffle which is random)
+    _quickPicks = quickPicksList.take(20).toList();
+    _quickPicks.shuffle(); // Shuffle ensuring top 20 are mixed
   }
 
   Future<void> _generateRelatedAlbums(List<String> artists) async {
@@ -156,16 +199,30 @@ class MusicProvider with ChangeNotifier {
     }
   }
 
-  Future<void> fetchExploreData() async {
+  Future<void> fetchExploreData({List<String>? seedArtists}) async {
     _isLoading = true;
     notifyListeners();
     try {
       if (_currentSource == MusicSource.youtube) {
         _charts = await _youtubeService.getCharts();
-        _newReleases = await _youtubeService.getNewReleases();
+        
+        // Personalize New Releases if seeds are available
+        if (seedArtists != null && seedArtists.isNotEmpty) {
+           final seed = seedArtists.first; // Use the most relevant artist
+           _newReleases = await _youtubeService.searchAlbums('New albums similar to $seed');
+        } else {
+           _newReleases = await _youtubeService.getNewReleases();
+        }
+
       } else {
         _charts = await _saavnService.getCharts();
-        _newReleases = await _saavnService.getNewReleases();
+        // Saavn personalization (basic fallback for now, as SaavnService.getNewReleases is rigid)
+         if (seedArtists != null && seedArtists.isNotEmpty) {
+           final seed = seedArtists.first;
+           _newReleases = await _saavnService.searchAlbums('New albums $seed');
+         } else {
+           _newReleases = await _saavnService.getNewReleases();
+         }
       }
     } catch (e) {
       print('Explore Data Error: $e');
@@ -196,6 +253,36 @@ class MusicProvider with ChangeNotifier {
       await DatabaseService.isar.searchHistorys.clear();
     });
     await loadSearchHistory();
+  }
+
+  Future<void> addToHistory(MusicTrack track) async {
+    if (track.id.isEmpty) return;
+
+    // 1. Update In-Memory List Immediately (Realtime UI)
+    _recentlyPlayed.removeWhere((t) => t.id == track.id);
+    _recentlyPlayed.insert(0, track);
+    if (_recentlyPlayed.length > 20) {
+      _recentlyPlayed = _recentlyPlayed.take(20).toList();
+    }
+    notifyListeners();
+
+    // 2. Persist to DB
+    try {
+      final history = WatchHistory(
+        trackId: track.id,
+        title: track.title,
+        artist: track.artist,
+        albumArtUrl: track.albumArtUrl,
+        timestamp: DateTime.now(),
+        source: track.source.toString(),
+      );
+
+      await DatabaseService.isar.writeTxn(() async {
+        await DatabaseService.isar.watchHistorys.put(history);
+      });
+    } catch (e) {
+      print('Error saving history: $e');
+    }
   }
 
   Future<void> fetchSuggestions(String query) async {
@@ -230,24 +317,27 @@ class MusicProvider with ChangeNotifier {
     }
   }
 
-  Future<List<MusicTrack>> getArtistTracks(String id, String name) async {
-    if (_currentSource == MusicSource.youtube) {
+  Future<List<MusicTrack>> getArtistTracks(String id, String name, {MusicSource? source}) async {
+    final targetSource = source ?? _currentSource;
+    if (targetSource == MusicSource.youtube) {
       return _youtubeService.getArtistTracks(name);
     } else {
       return _saavnService.getArtistTracks(id);
     }
   }
 
-  Future<List<MusicTrack>> getAlbumTracks(String id, String name, String artist) async {
-    if (_currentSource == MusicSource.youtube) {
+  Future<List<MusicTrack>> getAlbumTracks(String id, String name, String artist, {MusicSource? source}) async {
+    final targetSource = source ?? _currentSource;
+    if (targetSource == MusicSource.youtube) {
       return _youtubeService.getAlbumTracks(name, artist, albumId: id);
     } else {
       return _saavnService.getAlbumTracksById(id);
     }
   }
 
-  Future<List<MusicTrack>> getPlaylistTracks(String id) async {
-    if (_currentSource == MusicSource.youtube) {
+  Future<List<MusicTrack>> getPlaylistTracks(String id, {MusicSource? source}) async {
+    final targetSource = source ?? _currentSource;
+    if (targetSource == MusicSource.youtube) {
       return _youtubeService.getPlaylistTracks(id);
     } else {
       return _saavnService.getPlaylistTracks(id);
@@ -309,8 +399,8 @@ class MusicProvider with ChangeNotifier {
         ]);
         if (_activeSearchQuery != query) return;
         _songs = results[0];
-        _artists = bothSources ? results[1] : [];
-        _albums = bothSources ? results[2] : [];
+        _artists = results[1];
+        _albums = results[2];
         _playlists = [];
       }
     } catch (e) {

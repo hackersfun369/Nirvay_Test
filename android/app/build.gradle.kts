@@ -35,7 +35,23 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
+    }
+
+    // Disable resource shrinking to avoid missing attribute errors
+    packagingOptions {
+        resources {
+            excludes += listOf(
+                "META-INF/proguard/androidx-*.pro",
+                "META-INF/proguard/kotlin-stdlib.pro"
+            )
+        }
+    }
+
+    lint {
+        disable += "MissingDimensionBaselineProfileContentProvider"
     }
 }
 

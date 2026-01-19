@@ -135,28 +135,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
       return const Center(child: CircularProgressIndicator(color: SpotifyColors.green));
     }
 
-    // Filter out non-songs if using Saavn
-    final showOnlySongs = provider.currentSource == MusicSource.saavn;
-
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       children: [
         if (provider.songs.isNotEmpty) ...[
           _buildResultSection('Songs', provider.songs),
         ],
-        
-        // Only show Albums/Artists/Playlists if NOT Saavn (or if user wants them back later)
-        if (!showOnlySongs) ...[
-          if (provider.albums.isNotEmpty) ...[
-            _buildResultSection('Albums', provider.albums, isHorizontal: true),
-          ],
-          if (provider.artists.isNotEmpty) ...[
-            _buildResultSection('Artists', provider.artists, isHorizontal: true, isCircle: true),
-          ],
-          if (provider.playlists.isNotEmpty) ...[
-            _buildResultSection('Playlists', provider.playlists, isHorizontal: true),
-          ],
-        ],
+        // IMPORTANT: We intentionally exclude Albums, Artists, and Playlists here
+        // as per the requirement to show "Only Songs" in Explore.
         const SizedBox(height: 100),
       ],
     );
@@ -227,6 +213,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
             albumName: item.title,
             artistName: item.artist,
             albumArtUrl: item.albumArtUrl,
+            source: item.source,
           ),
         ),
       );

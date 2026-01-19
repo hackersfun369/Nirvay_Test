@@ -1,5 +1,5 @@
 package com.example.my_spotify_app
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceFragmentActivity
 
-class MainActivity : FlutterActivity()
+class MainActivity : AudioServiceFragmentActivity()

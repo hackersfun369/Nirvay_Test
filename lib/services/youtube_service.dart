@@ -1,11 +1,17 @@
-import 'ytm_client.dart';
+import 'package:flutter/material.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
 import '../models/music_track.dart';
+import 'ytm_client.dart';
 
 class YouTubeService {
   static final YouTubeService _instance = YouTubeService._internal();
   factory YouTubeService() => _instance;
-  YouTubeService._internal();
+  YouTubeService._internal() {
+    // Global HTTP overrides are now handled in main.dart
+  }
 
   final _yt = YoutubeExplode();
   final _ytm = YtmClient();
@@ -27,11 +33,11 @@ class YouTubeService {
   }
 
   Future<List<MusicTrack>> getCharts() async {
-    return search('Top 100 Music');
+    return searchPlaylists('Top Charts');
   }
 
   Future<List<MusicTrack>> getNewReleases() async {
-    return search('New Music Releases');
+    return searchAlbums('New Albums');
   }
 
   Future<List<MusicTrack>> getArtistTracks(String artistName) async {
@@ -57,10 +63,32 @@ class YouTubeService {
     return _ytm.getPlaylistTracks(playlistId);
   }
 
+  /// Extract audio stream URL from YouTube video using nirvay_audio_success approach
+  /// Fetches the best muxed stream (audio+video) to ensure highest quality audio
   Future<String> getAudioStreamUrl(String videoId) async {
-    final manifest = await _yt.videos.streamsClient.getManifest(videoId, ytClients: [YoutubeApiClient.androidVr]);
-    final audioStream = manifest.audioOnly.withHighestBitrate();
-    return audioStream.url.toString();
+    try {
+      // Get video manifest with multiple API clients for better reliability
+      final manifest = await _yt.videos.streamsClient.getManifest(
+        videoId,
+        /* ytClients: [YoutubeApiClient.androidVr, YoutubeApiClient.android], */
+      );
+      
+      // Prefer muxed streams (audio+video) for better quality
+      if (manifest.muxed.isNotEmpty) {
+        final audioStream = manifest.muxed.withHighestBitrate();
+        return audioStream.url.toString();
+      }
+      
+      // Fallback to audio-only streams if muxed not available
+      if (manifest.audioOnly.isNotEmpty) {
+        final audioStream = manifest.audioOnly.withHighestBitrate();
+        return audioStream.url.toString();
+      }
+      
+      throw Exception('No audio streams available for video ID: $videoId');
+    } catch (e) {
+      throw Exception('Failed to extract audio URL: $e');
+    }
   }
 
   void dispose() {

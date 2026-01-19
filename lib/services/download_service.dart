@@ -6,7 +6,11 @@ import 'youtube_service.dart';
 import 'saavn_service.dart';
 
 class DownloadService {
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(BaseOptions(
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    },
+  ));
   final YouTubeService _youtubeService = YouTubeService();
   final JioSaavnService _saavnService = JioSaavnService();
 

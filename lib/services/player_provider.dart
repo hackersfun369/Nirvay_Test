@@ -12,6 +12,8 @@ import '../models/lyric_line.dart';
 import '../models/watch_history.dart';
 import 'database_service.dart';
 import 'dart:io';
+import '../../main.dart';
+import 'music_provider.dart';
 
 class PlayerProvider with ChangeNotifier {
   final AudioPlayer _player = AudioPlayer();
@@ -302,6 +304,11 @@ class PlayerProvider with ChangeNotifier {
           artist: finalTrack.artist,
           artUri: artUrl != null ? Uri.parse(artUrl) : null,
       );
+
+      // Add to History (Realtime)
+      if (navigatorKey.currentContext != null) {
+        Provider.of<MusicProvider>(navigatorKey.currentContext!, listen: false).addToHistory(finalTrack);
+      }
 
       if (finalTrack.isDownloaded) {
         final file = File(url);
